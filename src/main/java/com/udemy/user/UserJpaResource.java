@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import com.udemy.jpa.PostRepository;
 import com.udemy.jpa.UserRepository;
 
 import jakarta.validation.Valid;
@@ -27,13 +28,13 @@ import jakarta.validation.Valid;
 @RestController
 public class UserJpaResource {
 	
-	private UserDaoService service;
+	private PostRepository postRepository;
 	
 	private UserRepository repository;
 	
-	public UserJpaResource(UserDaoService service , UserRepository repository) {
-		this.service = service;
+	public UserJpaResource(UserRepository repository , PostRepository postRepository) {
 		this.repository = repository;
+		this.postRepository = postRepository;
 	}
 	
 	@GetMapping("/jpa/users")
@@ -65,5 +66,25 @@ public class UserJpaResource {
 		repository.deleteById(userId);
 	}
 	
+	@GetMapping("/jpa/users/{userId}/posts")
+	public List<Post> retreivePostsForUser(@PathVariable("userId") int userId) {
+		Optional<User> user = repository.findById(userId);
+		if (user.isEmpty()) 
+			throw new UserNotFoundException("ID :" + userId); 
+		return user.get().getPosts();
+	}
+	
+	
+	@PostMapping("/jpa/users/{userId}/posts")
+	public ResponseEntity<Object> createPostsForUser(@PathVariable("userId") int userId,@Valid @RequestBody Post post) {
+		Optional<User> user = repository.findById(userId);
+		if (user.isEmpty()) 
+			throw new UserNotFoundException("ID :" + userId); 
+		post.setUser(user.get());
+		Post savePost = postRepository.save(post);
+		URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
+				.buildAndExpand(savePost.getId()).toUri();
+		return ResponseEntity.created(location).build();
+	}
 
 }
